@@ -16,7 +16,7 @@ class inlineCode extends AbstractTag {
     return {
       name: this.name,
       pattern: this.pattern,
-      action: (text, selection, pattern, lineStart) => new Promise((resolve) => {
+      action: (text, selection, pattern) => new Promise((resolve) => {
         let match = /(`){1}(.+)(`){1}/g.exec(text)
         if (!match || !this.activeTags.length) {
           resolve(false)
@@ -24,7 +24,7 @@ class inlineCode extends AbstractTag {
         }
 
         const [annotatedText] = match
-        const startIndex = lineStart + match.index
+        const startIndex = match.index
         setTimeout(() => {
           this.quillJS.deleteText(startIndex, annotatedText.length)
           setTimeout(() => {

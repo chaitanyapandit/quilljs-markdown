@@ -100,21 +100,41 @@ class MarkdownActivity {
   onInlineExecute () {
     const selection = this.quillJS.getSelection()
     if (!selection) return
+    // Skip if inside a code block
     const [line, offset] = this.quillJS.getLine(selection.index)
-    const text = line.domNode.textContent
     const lineStart = selection.index - offset
     const format = this.quillJS.getFormat(lineStart)
     if (format['code-block'] || format['code']) {
       // if exists text in code-block, to skip.
       return
     }
+
+    const text = this.getTextBeforeCursor()
     for (let match of this.matches) {
       const matchedText = typeof match.pattern === 'function' ? match.pattern(text) : text.match(match.pattern)
       if (matchedText) {
-        match.action(text, selection, match.pattern, lineStart)
+        match.action(text, selection, match.pattern)
         return
       }
     }
+  }
+
+  getTextBeforeCursor() {
+    const selection = this.quillJS.getSelection()
+    if (!selection) return ''
+    var text = 
+    this.quillJS.getContents(0, selection.index)
+    .map(op => {
+      if (typeof op.insert === 'string') {
+        return op.insert
+      } else if (op.insert.mention) {
+        return ' '
+      } else {
+        return ''
+      }
+    })
+    .join('');
+    return text
   }
 
   async onFullTextExecute (virtualSelection) {
