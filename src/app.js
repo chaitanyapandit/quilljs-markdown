@@ -31,19 +31,19 @@ class MarkdownActivity {
     if (source !== 'user') return
 
     const selection = this.quillJS.getSelection()
-    const [line, offset] = this.quillJS.getLine(selection.index)
-    const lineStart = selection.index - offset
-
-    if (this.wasLineDeleted(delta, oldContents)) {
+    if (selection && this.wasLineDeleted(selection.index, delta, oldContents)) {
       // Check if the old attributes at the current position were not same
       // For example if you have code block with 2 lines, and you delete the second line
       // it should not remove the codeblock, since line 1 still had code block
       const oldAttrsAtCurrentIndex = this.getAttributeInDeltaAtIndex(selection.index, oldContents)
       if (oldAttrsAtCurrentIndex && (oldAttrsAtCurrentIndex['blockquote'] || oldAttrsAtCurrentIndex['code-block'])) {
+        // Ignore, retain current attrs
       } else {
         const rangeElements = ['PRE', 'BLOCKQUOTE']
         const [removeLine] = this.quillJS.getLine(selection.index)
         if (rangeElements.includes(removeLine.domNode.tagName)) {
+          const [line, offset] = this.quillJS.getLine(selection.index)
+          const lineStart = selection.index - offset
           this.quillJS.formatLine(lineStart, selection.index-lineStart, 'code-block', false)
           this.quillJS.formatLine(lineStart, selection.index-lineStart, 'blockquote', false)
         }   
@@ -171,10 +171,9 @@ class MarkdownActivity {
     return null
   }
 
-  wasLineDeleted(delta, oldDelta) {
+  wasLineDeleted(index, delta, oldDelta) {
     const oldtext = this.getTextFromDelta(oldDelta)
-    const selection = this.quillJS.getSelection()
-    const isLastCharNewLine = oldtext.charAt(selection.index) == "\n"
+    const isLastCharNewLine = oldtext.charAt(index) == "\n"
     const isRemoveCommand = delta.ops.find(e => e.hasOwnProperty('delete')) 
     return isRemoveCommand && isLastCharNewLine
   }
