@@ -15,7 +15,8 @@ class MarkdownActivity {
       rightParenthesis: ')',
       grave: '`',
       tilde: '~',
-      underscore: '_'
+      underscore: '_',
+      angle: '>'
     }
     this.ignoreTags = ['PRE', ...(options.ignoreTags || [])]
     this.tags = new TagsOperators(this.quillJS, options)
@@ -98,6 +99,7 @@ class MarkdownActivity {
         case this.actionCharacters.newLine:
         case this.actionCharacters.tilde:
         case this.actionCharacters.underscore:
+          case this.actionCharacters.angle:
           this.onInlineExecute.bind(this)()
           break
       }
@@ -117,6 +119,13 @@ class MarkdownActivity {
     const format = this.quillJS.getFormat(lineStart)
 
     const text = this.getTextBeforeCursor()
+    const delta = this.quillJS.getContents()
+    const attributes = this.getAttributeInDeltaAtIndex(selection.index, delta)
+    if (attributes && (attributes['blockquote'] || attributes['code-block'])) {
+      // Already inside blockquote or codeblock, skip
+      return
+    }
+
     for (let match of this.matches) {
       const matchedText = typeof match.pattern === 'function' ? match.pattern(text) : text.match(match.pattern)
       if (matchedText) {
