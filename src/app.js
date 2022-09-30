@@ -29,21 +29,32 @@ class MarkdownActivity {
 
   onTextChange (delta, oldContents, source) {
     if (source !== 'user') return
-    const cursorOffset = (delta.ops[0] && delta.ops[0].retain) || 0
-    const inputText = delta.ops[0].insert || (delta.ops[1] && delta.ops[1].insert)
-    const [removeLine] = this.quillJS.getLine(cursorOffset)
-    const insertDelta = delta.ops.find(e => e.hasOwnProperty('insert')) || {}
-    const isRemoveCommand = delta.ops.find(e => e.hasOwnProperty('delete')) || insertDelta.insert === '\n'
-    if (isRemoveCommand && removeLine.domNode.textContent.length <= 1) {
-      const rangeElements = ['PRE', 'BLOCKQUOTE']
-      if (rangeElements.includes(removeLine.domNode.tagName)) {
-        this.onRemoveElement({ delete: 1 })
+
+    const selection = this.quillJS.getSelection()
+    const [line, offset] = this.quillJS.getLine(selection.index)
+    const lineStart = selection.index - offset
+
+    if (this.wasLineDeleted(delta, oldContents)) {
+      // Check if the old attributes at the current position were not same
+      // For example if you have code block with 2 lines, and you delete the second line
+      // it should not remove the codeblock, since line 1 still had code block
+      const oldAttrsAtCurrentIndex = this.getAttributeInDeltaAtIndex(selection.index, oldContents)
+      if (oldAttrsAtCurrentIndex && (oldAttrsAtCurrentIndex['blockquote'] || oldAttrsAtCurrentIndex['code-block'])) {
+      } else {
+        const rangeElements = ['PRE', 'BLOCKQUOTE']
+        const [removeLine] = this.quillJS.getLine(selection.index)
+        if (rangeElements.includes(removeLine.domNode.tagName)) {
+          this.quillJS.formatLine(lineStart, selection.index-lineStart, 'code-block', false)
+          this.quillJS.formatLine(lineStart, selection.index-lineStart, 'blockquote', false)
+        }   
       }
     }
 
+    const inputText = delta.ops[0].insert || (delta.ops[1] && delta.ops[1].insert)
     if (!inputText) return
     if (inputText.length > 1) {
       setTimeout(async () => {
+        const cursorOffset = (delta.ops[0] && delta.ops[0].retain) || 0
         const cursorOffsetFixed = cursorOffset
         const tokens = inputText.split('\n')
         let _offset = cursorOffsetFixed
@@ -118,9 +129,14 @@ class MarkdownActivity {
   getTextBeforeCursor() {
     const selection = this.quillJS.getSelection()
     if (!selection) return ''
-    var text = 
-    this.quillJS.getContents(0, selection.index)
-    .map(op => {
+    return this.getTextFromDelta(this.quillJS.getContents(0, selection.index))
+  }
+
+  getTextFromDelta(delta) {
+    if (!delta) {
+      return ''
+    }
+    return delta.map(op => {
       if (typeof op.insert === 'string') {
         return op.insert
       } else if (op.insert.mention) {
@@ -130,7 +146,37 @@ class MarkdownActivity {
       }
     })
     .join('');
-    return text
+  }
+
+  getAttributeInDeltaAtIndex(index, delta) {
+    if (!delta) {
+      return null
+    }
+    let currentIndex = 0
+    for (var i = 0; i < delta.ops.length; i++) {
+      const op = delta.ops[i]
+
+      let deltaLength = 0
+      if (typeof op.insert === 'string'){
+        deltaLength = op.insert.length
+      } else if (op.insert.mention) {
+        deltaLength = 1
+      }
+      if (index >= currentIndex && index < (currentIndex+deltaLength) ) {
+        return op.attributes
+      }
+      currentIndex += deltaLength
+    }
+
+    return null
+  }
+
+  wasLineDeleted(delta, oldDelta) {
+    const oldtext = this.getTextFromDelta(oldDelta)
+    const selection = this.quillJS.getSelection()
+    const isLastCharNewLine = oldtext.charAt(selection.index) == "\n"
+    const isRemoveCommand = delta.ops.find(e => e.hasOwnProperty('delete')) 
+    return isRemoveCommand && isLastCharNewLine
   }
 
   async onFullTextExecute (virtualSelection) {
