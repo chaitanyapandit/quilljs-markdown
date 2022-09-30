@@ -37,7 +37,6 @@ class Codeblock extends AbstractTag {
           setTimeout(() => {
             this.quillJS.insertText(startIndex, newline)
             const newLinePosition = startIndex + 1 + newline.length + 1
-            this.quillJS.insertText(newLinePosition - 1, newline)
             this.quillJS.formatLine(newLinePosition - 2, 1, 'code-block', true)
             resolve(true)
           }, 0)
