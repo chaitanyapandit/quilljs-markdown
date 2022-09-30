@@ -104,16 +104,12 @@ class MarkdownActivity {
     const [line, offset] = this.quillJS.getLine(selection.index)
     const lineStart = selection.index - offset
     const format = this.quillJS.getFormat(lineStart)
-    if (format['code-block'] || format['code']) {
-      // if exists text in code-block, to skip.
-      return
-    }
 
     const text = this.getTextBeforeCursor()
     for (let match of this.matches) {
       const matchedText = typeof match.pattern === 'function' ? match.pattern(text) : text.match(match.pattern)
       if (matchedText) {
-        match.action(text, selection, match.pattern)
+        match.action(text, selection, match.pattern, lineStart)
         return
       }
     }
